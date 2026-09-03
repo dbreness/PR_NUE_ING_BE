@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Java / Maven
+**/target/
+*.class
+*.log
+
+# Node / Vite
+**/node_modules/
+**/dist/
+**/coverage/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+local-keys/
+*.pem
+
+# Temporary files
+tmp/
+*.tmp
+
