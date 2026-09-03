@@ -2,7 +2,7 @@
 -- TABLA PRINCIPAL: orders
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS orders (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, 
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     product_name VARCHAR(100) NOT NULL,
     quantity INTEGER NOT NULL,
     amount NUMERIC(10, 2) NOT NULL,
@@ -16,21 +16,19 @@ CREATE TABLE IF NOT EXISTS orders (
     CONSTRAINT chk_orders_status_allowed CHECK (status IN ('PENDIENTE', 'PAGADO', 'FALLO_PAGO'))
 );
 
--- Indice funcional: Optimiza busquedas en barra de texto convirtiendo todo a minusculas.
--- Permite busquedas rapidas case-insensitive en la UI.
+-- Índice funcional para búsquedas parciales sin distinguir mayúsculas.
 CREATE INDEX IF NOT EXISTS idx_orders_product_name
     ON orders (lower(product_name));
 
--- Indice de estado: Acelera drasticamente el filtrado del Dashboard
--- cuando el usuario consulte unicamente pedidos 'PAGADO' o 'FALLO_PAGO' 
+-- Índice para filtrar las órdenes por estado.
 CREATE INDEX IF NOT EXISTS idx_orders_status
     ON orders (status);
 
--- Indice de paginacion: Ordena fisicamente los accesos en orden descendente.
+-- Índice para consultas ordenadas por fecha de creación descendente.
 CREATE INDEX IF NOT EXISTS idx_orders_created_at_desc
     ON orders (created_at DESC);
 
--- Funcion que actualiza automaticamente la mmodificacion.
+-- Función que actualiza automáticamente la fecha de modificación.
 CREATE OR REPLACE FUNCTION set_orders_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -39,8 +37,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger que intercepta la fila justo antes de realizar un UPDATE.
--- cada transicion de estado asIncrona registra el segundo exacto del cambio.
+-- Trigger que actualiza updated_at antes de modificar una orden.
 DROP TRIGGER IF EXISTS trg_orders_updated_at ON orders;
 
 CREATE TRIGGER trg_orders_updated_at
