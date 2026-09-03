@@ -19,6 +19,7 @@ El proyecto se implementará incrementalmente en seis fases:
 - `payment-ms/`: procesamiento asíncrono de pagos.
 - `react-front/`: interfaz web del sistema.
 - `infra/postgres/init.sql`: esquema inicial de PostgreSQL.
+- `tools/rsa-key-generator/`: utilidad local para generar claves RSA.
 - `docker-compose.yml`: infraestructura y, en fases posteriores, aplicación completa.
 
 ## Infraestructura local
@@ -49,6 +50,33 @@ docker compose down
 ```
 
 `docker compose down` conserva los volúmenes y sus datos. Use `docker compose down -v` únicamente cuando sea necesario eliminar también la información local.
+
+## Claves RSA locales
+
+PaymentMS requiere una clave privada RSA y el frontend usa la clave pública correspondiente para cifrar los datos de tarjeta en el navegador. Genere el par con Java 17:
+
+```bash
+java tools/rsa-key-generator/RsaKeyGenerator.java
+```
+
+Por defecto se crean estos archivos:
+
+- `local-keys/public/public-key.pem`: clave pública SPKI que se servirá como `/public-key.pem`.
+- `local-keys/private/private-key.pem`: clave privada PKCS#8 que se montará solo en PaymentMS.
+
+Para usar otra ruta durante pruebas:
+
+```bash
+java tools/rsa-key-generator/RsaKeyGenerator.java --output-dir /tmp/order-payment-keys
+```
+
+La utilidad rechaza sobrescrituras accidentales. Use `--force` únicamente cuando desee reemplazar el par existente:
+
+```bash
+java tools/rsa-key-generator/RsaKeyGenerator.java --force
+```
+
+La carpeta `local-keys/` está ignorada por Git. No copie claves privadas, datos reales de tarjeta ni secretos al repositorio; en ambientes no locales deben inyectarse mediante una solución segura de secretos.
 
 ## Flujo de integración
 
