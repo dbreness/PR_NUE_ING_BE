@@ -13,6 +13,43 @@ El proyecto se implementará incrementalmente en seis fases:
 5. Frontend React.
 6. Dockerización, validación E2E y documentación final.
 
+## Estructura inicial
+
+- `order-ms/`: API REST y persistencia de órdenes.
+- `payment-ms/`: procesamiento asíncrono de pagos.
+- `react-front/`: interfaz web del sistema.
+- `infra/postgres/init.sql`: esquema inicial de PostgreSQL.
+- `docker-compose.yml`: infraestructura y, en fases posteriores, aplicación completa.
+
+## Infraestructura local
+
+Se requiere Docker con el complemento Docker Compose. Para preparar la configuración local:
+
+```bash
+cp .env.example .env
+docker compose config
+```
+
+Los valores de `.env.example` son únicamente para desarrollo local. Antes de usar esta configuración fuera de un entorno de prueba, se deben sustituir las credenciales y aplicar una gestión segura de secretos.
+
+Para iniciar solamente PostgreSQL, Zookeeper y Kafka:
+
+```bash
+docker compose up -d postgres zookeeper kafka
+docker compose ps
+```
+
+PostgreSQL queda disponible en `localhost:5432` y Kafka en `localhost:9092`, salvo que se cambien sus puertos en `.env`. Durante la primera creación del volumen, PostgreSQL ejecuta `infra/postgres/init.sql` y crea la tabla `orders`, sus restricciones, índices y trigger de actualización.
+
+Para inspeccionar los servicios o detenerlos:
+
+```bash
+docker compose logs -f postgres kafka
+docker compose down
+```
+
+`docker compose down` conserva los volúmenes y sus datos. Use `docker compose down -v` únicamente cuando sea necesario eliminar también la información local.
+
 ## Flujo de integración
 
 Cada fase se desarrolla en un branch `feature/NN-descripcion` creado desde el `main` actualizado. Los cambios se dividen en commits atómicos con mensajes Conventional Commits en español. Antes de cada commit se revisan su alcance, pruebas, asunto y descripción; antes de cada merge se ejecutan las comprobaciones de la fase.
@@ -23,4 +60,4 @@ Las fases aprobadas se integran mediante `git merge --no-ff`, se vuelven a compr
 
 Las credenciales incluidas durante el desarrollo serán exclusivamente locales. No se deben versionar claves RSA privadas, datos reales de tarjetas, archivos `.env` ni secretos. Los datos sensibles tampoco deben aparecer en respuestas HTTP o logs.
 
-Las instrucciones completas de instalación, ejecución y pruebas se añadirán conforme avance cada fase.
+Las instrucciones de los microservicios, frontend y pruebas integrales se añadirán conforme avance cada fase.
