@@ -11,4 +11,9 @@ public record CardData(String cardNumber, String expiration, String cvv) {
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
+
+    @Override
+    public String toString() {
+        return "CardData[REDACTED]";
+    }
 }
