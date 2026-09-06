@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: payment-ms
+  main:
+    web-application-type: none
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP:payment-ms}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.challenge.payment.messaging
+        spring.json.value.default.type: com.challenge.payment.messaging.OrderPlacedEvent
+        spring.json.use.type.headers: false
+
+app:
+  kafka:
+    topics:
+      order-placed: ${KAFKA_TOPIC_ORDER_PLACED:order-placed}
+      payment-processed: ${KAFKA_TOPIC_PAYMENT_PROCESSED:payment-processed}
+
+logging:
+  level:
+    root: INFO
+    com.challenge.payment: INFO
