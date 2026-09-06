@@ -14,7 +14,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
     networks:
       - challenge-network
 
@@ -33,7 +34,8 @@ services:
     ports:
       - "${KAFKA_PORT:-9092}:9092"
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_started
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -41,8 +43,77 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     volumes:
       - kafka_data:/var/lib/kafka/data
+    networks:
+      - challenge-network
+
+  order-ms:
+    build:
+      context: ./order-ms
+      dockerfile: Dockerfile
+    image: challenge-order-ms:local
+    ports:
+      - "${ORDER_MS_PORT:-8081}:8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-order_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-admin}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-supersecretpassword}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_GROUP: order-ms
+      KAFKA_TOPIC_ORDER_PLACED: order-placed
+      KAFKA_TOPIC_PAYMENT_PROCESSED: payment-processed
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - challenge-network
+
+  payment-ms:
+    build:
+      context: ./payment-ms
+      dockerfile: Dockerfile
+    image: challenge-payment-ms:local
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_GROUP: payment-ms
+      KAFKA_TOPIC_ORDER_PLACED: order-placed
+      KAFKA_TOPIC_PAYMENT_PROCESSED: payment-processed
+      RSA_PRIVATE_KEY_PATH: /run/secrets/payment-private-key.pem
+      PAYMENT_SUCCESS_RATE: ${PAYMENT_SUCCESS_RATE:-0.85}
+      PAYMENT_PROCESSING_DELAY_MS: ${PAYMENT_PROCESSING_DELAY_MS:-2000}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    secrets:
+      - source: payment_private_key
+        target: payment-private-key.pem
+    networks:
+      - challenge-network
+
+  frontend:
+    build:
+      context: ./react-front
+      dockerfile: Dockerfile
+    image: challenge-react-front:local
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      order-ms:
+        condition: service_started
+    volumes:
+      - ./local-keys/public/public-key.pem:/usr/share/nginx/html/public-key.pem:ro
     networks:
       - challenge-network
 
@@ -53,3 +124,7 @@ volumes:
 networks:
   challenge-network:
     driver: bridge
+
+secrets:
+  payment_private_key:
+    file: ./local-keys/private/private-key.pem
