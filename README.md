@@ -32,6 +32,8 @@ java tools/rsa-key-generator/RsaKeyGenerator.java
 
 Los valores de `.env.example` son solo para desarrollo local. La utilidad crea `local-keys/public/public-key.pem` (SPKI) y `local-keys/private/private-key.pem` (PKCS#8), y rechaza sobrescrituras. Para reemplazar deliberadamente el par use `--force`.
 
+Compose configura la base de datos mediante `POSTGRES_DB` y monta `infra/postgres/init.sql` como `/docker-entrypoint-initdb.d/init.sql:ro` en PostgreSQL. La imagen ejecuta ese script al inicializar un volumen de datos vacío para crear la tabla `orders`, sus restricciones, índices y trigger; no es necesario ejecutarlo manualmente.
+
 ## Ejecución con Docker Compose
 
 Valide la configuración y levante el sistema completo:
@@ -79,7 +81,11 @@ docker compose logs -f kafka postgres
 docker compose down
 ```
 
-`docker compose down` conserva los volúmenes. Use `docker compose down -v` solamente si desea borrar los datos locales; PostgreSQL ejecuta `init.sql` únicamente al crear un volumen vacío. Si un puerto está ocupado, cambie su valor en `.env` antes de iniciar el stack.
+`docker compose down` conserva los volúmenes nombrados de PostgreSQL, Kafka y Zookeeper. Al ejecutar nuevamente `docker compose up -d --wait`, se reutilizan las órdenes y el estado del clúster. Zookeeper persiste tanto sus datos como su registro de transacciones; ambos deben conservarse junto con los datos de Kafka para mantener el mismo identificador de clúster.
+
+Use `docker compose down -v` solamente si desea borrar todos esos datos locales. PostgreSQL ejecuta `init.sql` únicamente al crear un volumen vacío. Si un puerto está ocupado, cambie su valor en `.env` antes de iniciar el stack.
+
+Si conserva volúmenes de una versión anterior que perdió el estado de Zookeeper, agregar estos montajes no recupera ese estado. Un error `InconsistentClusterIdException` requiere recuperar una copia consistente de Kafka/Zookeeper o, si sus datos de prueba son descartables, planificar su reinicialización; no elimine volúmenes con información que necesite conservar.
 
 ## Seguridad
 
