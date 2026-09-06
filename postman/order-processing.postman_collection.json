@@ -1,0 +1,494 @@
+{
+  "info": {
+    "_postman_id": "a1c23ca5-f3e8-46cb-b9cc-79968914a6d4",
+    "name": "Sistema de órdenes - Validación E2E",
+    "description": "Ejecutar la colección completa y en orden con el stack iniciado. Usa exclusivamente datos ficticios, cifra la tarjeta antes del POST y valida creación, transición de estado, detalle, filtros, paginación y ordenamiento.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Crear orden principal cifrada",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const runId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;",
+              "const productPrefix = `Producto Postman ${runId}`;",
+              "pm.collectionVariables.set('productPrefix', productPrefix);",
+              "pm.collectionVariables.set('productFilter', productPrefix.toLowerCase());",
+              "",
+              "const response = await pm.sendRequest(`${pm.collectionVariables.get('baseUrl')}/public-key.pem`);",
+              "if (response.code !== 200) {",
+              "  throw new Error('No fue posible obtener la clave pública');",
+              "}",
+              "",
+              "const base64Key = response.text()",
+              "  .replace('-----BEGIN PUBLIC KEY-----', '')",
+              "  .replace('-----END PUBLIC KEY-----', '')",
+              "  .replace(/\\s/g, '');",
+              "const keyBytes = Uint8Array.from(atob(base64Key), (character) => character.charCodeAt(0));",
+              "const publicKey = await crypto.subtle.importKey(",
+              "  'spki',",
+              "  keyBytes.buffer,",
+              "  { name: 'RSA-OAEP', hash: 'SHA-256' },",
+              "  false,",
+              "  ['encrypt']",
+              ");",
+              "const cardData = new TextEncoder().encode(JSON.stringify({",
+              "  cardNumber: '4111111111111111',",
+              "  expiration: '12/30',",
+              "  cvv: '123'",
+              "}));",
+              "const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, publicKey, cardData);",
+              "const encryptedBase64 = btoa(String.fromCharCode(...new Uint8Array(encrypted)));",
+              "pm.collectionVariables.set('encryptedCardData', encryptedBase64);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('La orden inicia PENDIENTE', () => pm.expect(body.status).to.eql('PENDIENTE'));",
+              "pm.test('No expone encryptedCardData', () => pm.expect(body).not.to.have.property('encryptedCardData'));",
+              "pm.collectionVariables.set('orderId', String(body.id));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productName\": \"{{productPrefix}} Alto\",\n  \"quantity\": 2,\n  \"amount\": 129.99,\n  \"encryptedCardData\": \"{{encryptedCardData}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders"
+          ]
+        },
+        "description": "Obtiene la clave pública, cifra datos ficticios con RSA-OAEP SHA-256 y crea la orden principal."
+      }
+    },
+    {
+      "name": "2. Crear orden secundaria cifrada",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('La orden inicia PENDIENTE', () => pm.expect(body.status).to.eql('PENDIENTE'));",
+              "pm.test('No expone encryptedCardData', () => pm.expect(body).not.to.have.property('encryptedCardData'));",
+              "pm.collectionVariables.set('secondOrderId', String(body.id));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productName\": \"{{productPrefix}} Bajo\",\n  \"quantity\": 2,\n  \"amount\": 19.99,\n  \"encryptedCardData\": \"{{encryptedCardData}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/orders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders"
+          ]
+        },
+        "description": "Crea una segunda orden de menor monto para validar paginación y ordenamiento."
+      }
+    },
+    {
+      "name": "3. Esperar transición de la orden principal",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const terminalStatuses = ['PAGADO', 'FALLO_PAGO'];",
+              "const maxAttempts = 30;",
+              "const intervalMs = 1000;",
+              "const detailUrl = `${pm.collectionVariables.get('baseUrl')}/api/orders/${pm.collectionVariables.get('orderId')}`;",
+              "let response = pm.response;",
+              "let body = {};",
+              "",
+              "for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {",
+              "  pm.test(`Consulta de estado ${attempt} responde 200`, () => pm.expect(response.code).to.eql(200));",
+              "  if (response.code !== 200) {",
+              "    break;",
+              "  }",
+              "",
+              "  body = response.json();",
+              "  if (terminalStatuses.includes(body.status)) {",
+              "    break;",
+              "  }",
+              "  if (body.status !== 'PENDIENTE' || attempt === maxAttempts) {",
+              "    break;",
+              "  }",
+              "",
+              "  await new Promise((resolve) => setTimeout(resolve, intervalMs));",
+              "  response = await pm.sendRequest(detailUrl);",
+              "}",
+              "",
+              "pm.test('La orden alcanza un estado terminal', () => pm.expect(terminalStatuses).to.include(body.status));",
+              "pm.test('El detalle no expone encryptedCardData', () => pm.expect(body).not.to.have.property('encryptedCardData'));",
+              "if (terminalStatuses.includes(body.status)) {",
+              "  pm.collectionVariables.set('finalStatus', body.status);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders",
+            "{{orderId}}"
+          ]
+        },
+        "description": "Consulta cada segundo hasta obtener PAGADO o FALLO_PAGO, con un máximo de 30 intentos."
+      }
+    },
+    {
+      "name": "4. Filtrar por producto",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "const ids = body.items.map((item) => item.id);",
+              "pm.test('El filtro parcial devuelve ambas órdenes', () => {",
+              "  pm.expect(ids).to.include(Number(pm.collectionVariables.get('orderId')));",
+              "  pm.expect(ids).to.include(Number(pm.collectionVariables.get('secondOrderId')));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/orders?productName={{productFilter}}&page=0&size=10&sort=createdAt,desc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "productName",
+              "value": "{{productFilter}}",
+              "description": "Texto en minúsculas para comprobar búsqueda sin distinguir mayúsculas."
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "10"
+            },
+            {
+              "key": "sort",
+              "value": "createdAt,desc"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Filtrar por estado final",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "const orderId = Number(pm.collectionVariables.get('orderId'));",
+              "const finalStatus = pm.collectionVariables.get('finalStatus');",
+              "pm.test('Incluye la orden con el estado exacto', () => {",
+              "  pm.expect(body.items.some((item) => item.id === orderId && item.status === finalStatus)).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/orders?status={{finalStatus}}&productName={{productPrefix}} Alto&page=0&size=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "{{finalStatus}}"
+            },
+            {
+              "key": "productName",
+              "value": "{{productPrefix}} Alto"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Consultar primera página",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Los metadatos de la primera página son correctos', () => {",
+              "  pm.expect(body.page).to.eql(0);",
+              "  pm.expect(body.size).to.eql(1);",
+              "  pm.expect(body.totalElements).to.eql(2);",
+              "  pm.expect(body.totalPages).to.eql(2);",
+              "});",
+              "pm.test('El monto mayor aparece primero', () => {",
+              "  pm.expect(body.items[0].id).to.eql(Number(pm.collectionVariables.get('orderId')));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/orders?productName={{productFilter}}&page=0&size=1&sort=amount,desc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "productName",
+              "value": "{{productFilter}}"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "1"
+            },
+            {
+              "key": "sort",
+              "value": "amount,desc"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Consultar segunda página",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('La segunda página contiene el monto menor', () => {",
+              "  pm.expect(body.page).to.eql(1);",
+              "  pm.expect(body.items).to.have.lengthOf(1);",
+              "  pm.expect(body.items[0].id).to.eql(Number(pm.collectionVariables.get('secondOrderId')));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/orders?productName={{productFilter}}&page=1&size=1&sort=amount,desc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "productName",
+              "value": "{{productFilter}}"
+            },
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "size",
+              "value": "1"
+            },
+            {
+              "key": "sort",
+              "value": "amount,desc"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Validar ordenamiento completo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Las órdenes están ordenadas por monto descendente', () => {",
+              "  pm.expect(body.items).to.have.lengthOf(2);",
+              "  pm.expect(body.items[0].id).to.eql(Number(pm.collectionVariables.get('orderId')));",
+              "  pm.expect(body.items[1].id).to.eql(Number(pm.collectionVariables.get('secondOrderId')));",
+              "  pm.expect(Number(body.items[0].amount)).to.be.greaterThan(Number(body.items[1].amount));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/orders?productName={{productFilter}}&page=0&size=10&sort=amount,desc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "orders"
+          ],
+          "query": [
+            {
+              "key": "productName",
+              "value": "{{productFilter}}"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "10"
+            },
+            {
+              "key": "sort",
+              "value": "amount,desc"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "secondOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "encryptedCardData",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productPrefix",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productFilter",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "finalStatus",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
