@@ -1,91 +1,86 @@
 # Sistema de pedidos y pagos asíncronos
 
-Monorepositorio para una prueba técnica basada en dos microservicios Spring Boot, Apache Kafka, PostgreSQL y un cliente React. `OrderMS` administrará los pedidos y su estado; `PaymentMS` simulará el cobro y comunicará el resultado de forma asíncrona.
+Aplicación de referencia compuesta por dos microservicios Spring Boot, PostgreSQL, Apache Kafka y un frontend React. OrderMS registra y consulta órdenes; PaymentMS descifra los datos de pago, simula el cobro y publica el resultado de forma asíncrona.
 
-## Estado del proyecto
+## Arquitectura y flujo
 
-El proyecto se implementará incrementalmente en seis fases:
+- `order-ms/`: API REST en `/api/orders`, persistencia y eventos Kafka.
+- `payment-ms/`: consumidor de órdenes y simulador de pagos, sin API ni base de datos.
+- `react-front/`: dashboard React servido por Nginx, con cifrado RSA en el navegador.
+- `infra/postgres/init.sql`: esquema, restricciones, índices y trigger de PostgreSQL.
+- `tools/rsa-key-generator/`: generador local de claves RSA de 2048 bits.
+- `scripts/e2e.sh` y `postman/`: verificaciones integrales reproducibles.
 
-1. Infraestructura base.
-2. Generación y manejo de claves RSA.
-3. Microservicio de pedidos.
-4. Microservicio de pagos.
-5. Frontend React.
-6. Dockerización, validación E2E y documentación final.
+El flujo es: React cifra la tarjeta y crea una orden `PENDIENTE`; OrderMS publica `order-placed`; PaymentMS procesa el pago y publica `payment-processed`; OrderMS actualiza la orden a `PAGADO` o `FALLO_PAGO`.
 
-## Estructura inicial
+## Prerrequisitos
 
-- `order-ms/`: API REST y persistencia de órdenes.
-- `payment-ms/`: procesamiento asíncrono de pagos.
-- `react-front/`: interfaz web del sistema.
-- `infra/postgres/init.sql`: esquema inicial de PostgreSQL.
-- `tools/rsa-key-generator/`: utilidad local para generar claves RSA.
-- `docker-compose.yml`: infraestructura y, en fases posteriores, aplicación completa.
+- Git y Docker con Docker Compose.
+- Java 17 para generar las claves y ejecutar pruebas Maven fuera de Docker.
+- Node.js 24 y npm para validar el frontend fuera de Docker.
+- `curl`, `jq` y OpenSSL para el script E2E.
+- Postman 12 o posterior, opcional para ejecutar la colección.
 
-## Infraestructura local
-
-Se requiere Docker con el complemento Docker Compose. Para preparar la configuración local:
+## Preparación
 
 ```bash
+git clone https://github.com/dbreness/PR_NUE_ING_BE.git
+cd PR_NUE_ING_BE
 cp .env.example .env
-docker compose config
-```
-
-Los valores de `.env.example` son únicamente para desarrollo local. Antes de usar esta configuración fuera de un entorno de prueba, se deben sustituir las credenciales y aplicar una gestión segura de secretos.
-
-Para iniciar solamente PostgreSQL, Zookeeper y Kafka:
-
-```bash
-docker compose up -d postgres zookeeper kafka
-docker compose ps
-```
-
-PostgreSQL queda disponible en `localhost:5432` y Kafka en `localhost:9092`, salvo que se cambien sus puertos en `.env`. Durante la primera creación del volumen, PostgreSQL ejecuta `infra/postgres/init.sql` y crea la tabla `orders`, sus restricciones, índices y trigger de actualización.
-
-Para inspeccionar los servicios o detenerlos:
-
-```bash
-docker compose logs -f postgres kafka
-docker compose down
-```
-
-`docker compose down` conserva los volúmenes y sus datos. Use `docker compose down -v` únicamente cuando sea necesario eliminar también la información local.
-
-## Claves RSA locales
-
-PaymentMS requiere una clave privada RSA y el frontend usa la clave pública correspondiente para cifrar los datos de tarjeta en el navegador. Genere el par con Java 17:
-
-```bash
 java tools/rsa-key-generator/RsaKeyGenerator.java
 ```
 
-Por defecto se crean estos archivos:
+Los valores de `.env.example` son solo para desarrollo local. La utilidad crea `local-keys/public/public-key.pem` (SPKI) y `local-keys/private/private-key.pem` (PKCS#8), y rechaza sobrescrituras. Para reemplazar deliberadamente el par use `--force`.
 
-- `local-keys/public/public-key.pem`: clave pública SPKI que se servirá como `/public-key.pem`.
-- `local-keys/private/private-key.pem`: clave privada PKCS#8 que se montará solo en PaymentMS.
+## Ejecución con Docker Compose
 
-Para usar otra ruta durante pruebas:
-
-```bash
-java tools/rsa-key-generator/RsaKeyGenerator.java --output-dir /tmp/order-payment-keys
-```
-
-La utilidad rechaza sobrescrituras accidentales. Use `--force` únicamente cuando desee reemplazar el par existente:
+Valide la configuración y levante el sistema completo:
 
 ```bash
-java tools/rsa-key-generator/RsaKeyGenerator.java --force
+docker compose config
+docker compose up --build -d --wait
+docker compose ps
 ```
 
-La carpeta `local-keys/` está ignorada por Git. No copie claves privadas, datos reales de tarjeta ni secretos al repositorio; en ambientes no locales deben inyectarse mediante una solución segura de secretos.
+La interfaz queda disponible en `http://localhost:3000` y la API directa en `http://localhost:8081/api/orders`. Nginx dirige `/api` a OrderMS y publica únicamente la clave pública en `/public-key.pem`. La clave privada se monta como secreto de solo lectura exclusivamente en PaymentMS.
 
-## Flujo de integración
+Las variables de `.env` permiten cambiar puertos, credenciales locales, demora y probabilidad de pago. `PAYMENT_SUCCESS_RATE` acepta valores de `0.0` a `1.0`; `PAYMENT_PROCESSING_DELAY_MS` se expresa en milisegundos.
 
-Cada fase se desarrolla en un branch `feature/NN-descripcion` creado desde el `main` actualizado. Los cambios se dividen en commits atómicos con mensajes Conventional Commits en español. Antes de cada commit se revisan su alcance, pruebas, asunto y descripción; antes de cada merge se ejecutan las comprobaciones de la fase.
+## Pruebas automatizadas
 
-Las fases aprobadas se integran mediante `git merge --no-ff`, se vuelven a comprobar en `main` y se publican tanto el branch de trabajo como `main`. Los branches remotos se conservan para mantener trazabilidad.
+Ejecute las pruebas y compilaciones de cada módulo:
+
+```bash
+cd order-ms && ./mvnw test && ./mvnw package && cd ..
+cd payment-ms && ./mvnw test && ./mvnw package && cd ..
+cd react-front
+npm ci
+npm run lint
+npm test -- --run
+npm run build
+cd ..
+```
+
+Con el stack activo, valide creación cifrada, transición de estado, detalle, filtros, paginación y ordenamiento:
+
+```bash
+./scripts/e2e.sh
+```
+
+El script usa datos de tarjeta ficticios y admite `BASE_URL`, `POLL_INTERVAL_SECONDS` y `MAX_POLL_ATTEMPTS`. Ejemplo: `BASE_URL=http://localhost:3000 ./scripts/e2e.sh`.
+
+Para Postman, importe `postman/order-processing.postman_collection.json` y ejecute la colección completa en orden. La variable `baseUrl` apunta por defecto a `http://localhost:3000`; los identificadores y el payload cifrado se generan durante la ejecución.
+
+## Operación y diagnóstico
+
+```bash
+docker compose logs -f order-ms payment-ms
+docker compose logs -f kafka postgres
+docker compose down
+```
+
+`docker compose down` conserva los volúmenes. Use `docker compose down -v` solamente si desea borrar los datos locales; PostgreSQL ejecuta `init.sql` únicamente al crear un volumen vacío. Si un puerto está ocupado, cambie su valor en `.env` antes de iniciar el stack.
 
 ## Seguridad
 
-Las credenciales incluidas durante el desarrollo serán exclusivamente locales. No se deben versionar claves RSA privadas, datos reales de tarjetas, archivos `.env` ni secretos. Los datos sensibles tampoco deben aparecer en respuestas HTTP o logs.
-
-Las instrucciones de los microservicios, frontend y pruebas integrales se añadirán conforme avance cada fase.
+No use datos reales de tarjeta ni las credenciales de ejemplo fuera del entorno local. Nunca versione `.env`, claves PEM ni secretos. Las respuestas públicas y los logs no deben contener PAN, CVV, expiración, datos descifrados ni `encryptedCardData`.
