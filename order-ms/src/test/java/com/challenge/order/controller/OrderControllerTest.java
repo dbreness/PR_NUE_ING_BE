@@ -3,6 +3,7 @@ package com.challenge.order.controller;
 import com.challenge.order.dto.OrderPageResponse;
 import com.challenge.order.dto.OrderResponse;
 import com.challenge.order.exception.GlobalExceptionHandler;
+import com.challenge.order.exception.OrderEventPublishException;
 import com.challenge.order.exception.OrderNotFoundException;
 import com.challenge.order.model.OrderStatus;
 import com.challenge.order.service.OrderService;
@@ -22,6 +23,7 @@ import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -62,5 +64,28 @@ class OrderControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.message").value("No se encontró la orden 99"));
+    }
+
+    @Test
+    void createReturnsServiceUnavailableWhenEventCannotBePublished() throws Exception {
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        when(orderService.create(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new OrderEventPublishException(new IllegalStateException("Kafka no disponible")));
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productName": "Teclado",
+                                  "quantity": 1,
+                                  "amount": 10.00,
+                                  "encryptedCardData": "cipher"
+                                }
+                                """))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503))
+                .andExpect(jsonPath("$.message").value("No fue posible registrar la orden en este momento"));
     }
 }

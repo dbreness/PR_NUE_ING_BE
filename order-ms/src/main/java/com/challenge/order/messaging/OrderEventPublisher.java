@@ -1,5 +1,6 @@
 package com.challenge.order.messaging;
 
+import com.challenge.order.exception.OrderEventPublishException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -25,9 +26,9 @@ public class OrderEventPublisher {
             kafkaTemplate.send(orderPlacedTopic, String.valueOf(event.orderId()), event).get();
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("No fue posible publicar el evento de orden", exception);
+            throw new OrderEventPublishException(exception);
         } catch (ExecutionException exception) {
-            throw new IllegalStateException("No fue posible publicar el evento de orden", exception.getCause());
+            throw new OrderEventPublishException(exception.getCause());
         }
     }
 }

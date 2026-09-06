@@ -2,6 +2,7 @@ package com.challenge.order.service;
 
 import com.challenge.order.dto.CreateOrderRequest;
 import com.challenge.order.dto.OrderResponse;
+import com.challenge.order.exception.OrderEventPublishException;
 import com.challenge.order.messaging.OrderEventPublisher;
 import com.challenge.order.model.Order;
 import com.challenge.order.repository.OrderRepository;
@@ -50,11 +51,11 @@ class OrderServiceTest {
         CreateOrderRequest request = new CreateOrderRequest("Teclado", 1, BigDecimal.TEN, "cipher");
         Order savedOrder = new Order("Teclado", 1, BigDecimal.TEN, "cipher");
         when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
-        doThrow(new IllegalStateException("Kafka no disponible"))
+        doThrow(new OrderEventPublishException(new IllegalStateException("Kafka no disponible")))
                 .when(eventPublisher).publishOrderPlaced(any());
 
         org.junit.jupiter.api.Assertions.assertThrows(
-                IllegalStateException.class,
+                OrderEventPublishException.class,
                 () -> orderService.create(request)
         );
         verify(orderRepository).save(any(Order.class));
