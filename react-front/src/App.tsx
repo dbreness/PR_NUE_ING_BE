@@ -1,6 +1,10 @@
+import { useState } from 'react'
+import { OrderHistory } from './components/OrderHistory'
 import { OrderForm } from './components/OrderForm'
 
 function App() {
+  const [historyRefreshToken, setHistoryRefreshToken] = useState(0)
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-12 text-slate-900">
       <div className="mx-auto max-w-6xl">
@@ -11,8 +15,13 @@ function App() {
         <p className="mt-4 max-w-2xl text-lg text-slate-600">
           Crea órdenes y consulta el resultado de su procesamiento de pago.
         </p>
-        <div className="mt-10 max-w-2xl">
-          <OrderForm />
+        <div className="mt-10 grid gap-8">
+          <div className="max-w-2xl">
+            <OrderForm
+              onOrderCreated={() => setHistoryRefreshToken((current) => current + 1)}
+            />
+          </div>
+          <OrderHistory refreshToken={historyRefreshToken} />
         </div>
       </div>
     </main>

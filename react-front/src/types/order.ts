@@ -17,6 +17,28 @@ export interface CreateOrderRequest {
   encryptedCardData: string
 }
 
+export type OrderSort =
+  | 'createdAt,desc'
+  | 'createdAt,asc'
+  | 'productName,asc'
+  | 'amount,desc'
+
+export interface OrderListParams {
+  status?: OrderStatus
+  productName?: string
+  page: number
+  size: number
+  sort: OrderSort
+}
+
+export interface OrderPage {
+  items: Order[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 export interface OrderApiError {
   timestamp: string
   status: number

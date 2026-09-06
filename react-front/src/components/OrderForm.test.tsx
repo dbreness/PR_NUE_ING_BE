@@ -32,7 +32,8 @@ describe('OrderForm', () => {
   })
 
   it('envía únicamente el payload cifrado y limpia los datos de tarjeta', async () => {
-    render(<OrderForm />)
+    const onOrderCreated = vi.fn()
+    render(<OrderForm onOrderCreated={onOrderCreated} />)
 
     fireEvent.change(screen.getByLabelText('Producto'), { target: { value: 'Monitor' } })
     fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '2' } })
@@ -59,6 +60,7 @@ describe('OrderForm', () => {
     expect(screen.getByLabelText('Expiración')).toHaveValue('')
     expect(screen.getByLabelText('CVV')).toHaveValue('')
     expect(screen.getByRole('status')).toHaveTextContent('Orden #25 creada con estado PENDIENTE.')
+    expect(onOrderCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 25 }))
   })
 
   it('no envía la orden cuando falla el cifrado', async () => {

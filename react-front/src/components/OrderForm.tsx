@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useCreateOrder } from '../hooks/useCreateOrder'
 import type { CardData } from '../types/card'
+import type { Order } from '../types/order'
 import { encryptCardDataForTransport } from '../utils/rsaEncryption'
 
 const EMPTY_CARD: CardData = {
@@ -9,7 +10,11 @@ const EMPTY_CARD: CardData = {
   cvv: '',
 }
 
-export function OrderForm() {
+interface OrderFormProps {
+  onOrderCreated?: (order: Order) => void
+}
+
+export function OrderForm({ onOrderCreated }: OrderFormProps) {
   const [productName, setProductName] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [amount, setAmount] = useState('0.00')
@@ -55,6 +60,7 @@ export function OrderForm() {
         setQuantity('1')
         setAmount('0.00')
         setSuccessMessage(`Orden #${order.id} creada con estado ${order.status}.`)
+        onOrderCreated?.(order)
       }
     } catch (error) {
       setEncryptionError(
