@@ -49,6 +49,9 @@ describe('OrderHistory', () => {
     expect(screen.getByText('#25')).toBeInTheDocument()
     expect(screen.getByText('PAGADO')).toBeInTheDocument()
     expect(screen.getByText('12 órdenes')).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Tabla de órdenes con desplazamiento horizontal' }),
+    ).toHaveAttribute('tabindex', '0')
     expect(getOrdersMock).toHaveBeenCalledWith({
       page: 0,
       size: 10,

@@ -6,8 +6,8 @@ function App() {
   const [historyRefreshToken, setHistoryRefreshToken] = useState(0)
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-12 text-slate-900">
-      <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 sm:py-12">
+      <div className="mx-auto min-w-0 max-w-6xl">
         <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">
           Prueba técnica backend
         </p>
@@ -15,8 +15,8 @@ function App() {
         <p className="mt-4 max-w-2xl text-lg text-slate-600">
           Crea órdenes y consulta el resultado de su procesamiento de pago.
         </p>
-        <div className="mt-10 grid gap-8">
-          <div className="max-w-2xl">
+        <div className="mt-10 grid min-w-0 gap-8">
+          <div className="min-w-0 max-w-2xl">
             <OrderForm
               onOrderCreated={() => setHistoryRefreshToken((current) => current + 1)}
             />

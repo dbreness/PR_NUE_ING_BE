@@ -72,7 +72,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
   }
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" aria-labelledby="order-form-title">
+    <section className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6" aria-labelledby="order-form-title">
       <div className="mb-6">
         <h2 id="order-form-title" className="text-2xl font-semibold">Nueva orden</h2>
         <p className="mt-2 text-sm text-slate-600">
@@ -81,11 +81,11 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
       </div>
 
       <form className="space-y-6" onSubmit={handleSubmit}>
-        <fieldset disabled={isBusy} className="grid gap-5 disabled:opacity-70 sm:grid-cols-2">
+        <fieldset disabled={isBusy} className="grid min-w-0 gap-5 disabled:opacity-70 sm:grid-cols-2">
           <label className="grid gap-2 text-sm font-medium text-slate-700 sm:col-span-2">
             Producto
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               name="productName"
               value={productName}
               onChange={(event) => setProductName(event.target.value)}
@@ -97,7 +97,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             Cantidad
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               name="quantity"
               type="number"
               min="1"
@@ -111,7 +111,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             Monto
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               name="amount"
               type="number"
               min="0"
@@ -125,7 +125,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
           <label className="grid gap-2 text-sm font-medium text-slate-700 sm:col-span-2">
             Número de tarjeta
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               name="cardNumber"
               type="password"
               inputMode="numeric"
@@ -139,7 +139,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             Expiración
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               name="expiration"
               autoComplete="cc-exp"
               value={cardData.expiration}
@@ -151,7 +151,7 @@ export function OrderForm({ onOrderCreated }: OrderFormProps) {
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             CVV
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
               name="cvv"
               type="password"
               inputMode="numeric"

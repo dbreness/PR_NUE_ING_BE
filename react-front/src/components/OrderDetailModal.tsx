@@ -113,12 +113,12 @@ export function OrderDetailModal({ orderId, onClose }: OrderDetailModalProps) {
     <div
       aria-labelledby="order-detail-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-4"
       ref={dialogRef}
       role="dialog"
       tabIndex={-1}
     >
-      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
+      <div className="max-h-[calc(100dvh-2rem)] min-w-0 w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 shadow-xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-blue-700">

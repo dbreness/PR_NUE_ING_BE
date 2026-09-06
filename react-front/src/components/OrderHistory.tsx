@@ -59,7 +59,7 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
 
   return (
     <section
-      className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+      className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6"
       aria-labelledby="order-history-title"
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -74,7 +74,7 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
         </p>
       </div>
 
-      <form className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4" onSubmit={handleFilterSubmit}>
+      <form className="mt-6 grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4" onSubmit={handleFilterSubmit}>
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           Producto
           <input
@@ -138,7 +138,12 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
         </div>
       )}
 
-      <div className="mt-6 overflow-x-auto">
+      <div
+        aria-label="Tabla de órdenes con desplazamiento horizontal"
+        className="mt-6 min-w-0 max-w-full overflow-x-auto rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
+        role="region"
+        tabIndex={0}
+      >
         <table className="w-full min-w-[760px] border-collapse text-left text-sm">
           <caption className="sr-only">Órdenes registradas</caption>
           <thead>
@@ -211,7 +216,10 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
           por página
         </label>
 
-        <nav className="flex items-center gap-3" aria-label="Paginación de órdenes">
+        <nav
+          className="flex flex-wrap items-center justify-center gap-3 sm:justify-end"
+          aria-label="Paginación de órdenes"
+        >
           <button
             className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
             type="button"
