@@ -18,6 +18,22 @@ spring:
           time_zone: UTC
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP:order-ms}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.challenge.order.messaging
+
+app:
+  kafka:
+    topics:
+      order-placed: ${KAFKA_TOPIC_ORDER_PLACED:order-placed}
+      payment-processed: ${KAFKA_TOPIC_PAYMENT_PROCESSED:payment-processed}
 
 logging:
   level:

@@ -4,6 +4,8 @@ import com.challenge.order.dto.CreateOrderRequest;
 import com.challenge.order.dto.OrderPageResponse;
 import com.challenge.order.dto.OrderResponse;
 import com.challenge.order.exception.OrderNotFoundException;
+import com.challenge.order.messaging.OrderEventPublisher;
+import com.challenge.order.messaging.OrderPlacedEvent;
 import com.challenge.order.model.Order;
 import com.challenge.order.model.OrderStatus;
 import com.challenge.order.repository.OrderRepository;
@@ -16,9 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderEventPublisher eventPublisher;
 
-    public OrderService(OrderRepository orderRepository) {
+    public OrderService(OrderRepository orderRepository, OrderEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -29,7 +33,9 @@ public class OrderService {
                 request.amount(),
                 request.encryptedCardData()
         );
-        return OrderResponse.from(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+        eventPublisher.publishOrderPlaced(new OrderPlacedEvent(savedOrder.getId(), savedOrder.getEncryptedCardData()));
+        return OrderResponse.from(savedOrder);
     }
 
     @Transactional(readOnly = true)
