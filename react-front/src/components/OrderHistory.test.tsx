@@ -1,15 +1,16 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getOrders } from '../services/orderService'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getOrder, getOrders } from '../services/orderService'
 import type { OrderPage } from '../types/order'
 import { OrderHistory } from './OrderHistory'
 
 vi.mock('../services/orderService', async (importOriginal) => {
   const original = await importOriginal<typeof import('../services/orderService')>()
-  return { ...original, getOrders: vi.fn() }
+  return { ...original, getOrder: vi.fn(), getOrders: vi.fn() }
 })
 
 const getOrdersMock = vi.mocked(getOrders)
+const getOrderMock = vi.mocked(getOrder)
 const firstPage: OrderPage = {
   items: [
     {
@@ -30,8 +31,15 @@ const firstPage: OrderPage = {
 
 describe('OrderHistory', () => {
   beforeEach(() => {
+    vi.useRealTimers()
     vi.clearAllMocks()
     getOrdersMock.mockResolvedValue(firstPage)
+    getOrderMock.mockResolvedValue(firstPage.items[0])
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('consulta y muestra la página inicial con los parámetros predeterminados', async () => {
@@ -117,5 +125,50 @@ describe('OrderHistory', () => {
 
     expect(await screen.findByText('Monitor')).toBeInTheDocument()
     expect(getOrdersMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('abre el modal de detalle de la orden seleccionada', async () => {
+    render(<OrderHistory />)
+    await screen.findByText('Monitor')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Orden #25' })).toBeInTheDocument()
+  })
+
+  it('recarga cada dos segundos y se recupera de errores transitorios', async () => {
+    vi.useFakeTimers()
+    getOrdersMock
+      .mockResolvedValueOnce({
+        ...firstPage,
+        items: [{ ...firstPage.items[0], status: 'PENDIENTE' }],
+      })
+      .mockRejectedValueOnce(new Error('sin conexión'))
+      .mockResolvedValueOnce(firstPage)
+
+    render(<OrderHistory />)
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(screen.getByText('PENDIENTE')).toBeInTheDocument()
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No fue posible cargar las órdenes')
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(getOrdersMock).toHaveBeenCalledTimes(3)
+    expect(screen.getByText('PAGADO')).toBeInTheDocument()
   })
 })

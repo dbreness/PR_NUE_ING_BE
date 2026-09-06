@@ -18,6 +18,11 @@ export async function getOrders(params: OrderListParams): Promise<OrderPage> {
   return response.data
 }
 
+export async function getOrder(orderId: number, signal?: AbortSignal): Promise<Order> {
+  const response = await httpClient.get<Order>(`/orders/${orderId}`, { signal })
+  return response.data
+}
+
 export function getOrderErrorMessage(
   error: unknown,
   fallbackMessage = 'No fue posible crear la orden',

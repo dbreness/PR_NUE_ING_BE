@@ -1,6 +1,7 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import { useOrders } from '../hooks/useOrders'
 import type { OrderSort, OrderStatus } from '../types/order'
+import { OrderDetailModal } from './OrderDetailModal'
 
 const amountFormatter = new Intl.NumberFormat('es-CR', {
   minimumFractionDigits: 2,
@@ -29,6 +30,7 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
   const [sort, setSort] = useState<OrderSort>('createdAt,desc')
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
 
   const query = useMemo(
     () => ({
@@ -47,6 +49,10 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
     setPage(0)
     setProductName(productInput.trim())
   }
+
+  const handleDetailClose = useCallback(() => {
+    setSelectedOrderId(null)
+  }, [])
 
   const currentPage = ordersPage.totalPages === 0 ? 1 : ordersPage.page + 1
   const displayedTotalPages = Math.max(ordersPage.totalPages, 1)
@@ -144,6 +150,7 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
               <th className="px-3 py-3 font-semibold" scope="col">Estado</th>
               <th className="px-3 py-3 font-semibold" scope="col">Creada</th>
               <th className="px-3 py-3 font-semibold" scope="col">Actualizada</th>
+              <th className="px-3 py-3 font-semibold" scope="col">Detalle</th>
             </tr>
           </thead>
           <tbody className={isLoading ? 'opacity-50' : undefined} aria-busy={isLoading}>
@@ -162,6 +169,15 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
                 </td>
                 <td className="px-3 py-4 text-slate-600">{dateFormatter.format(new Date(order.createdAt))}</td>
                 <td className="px-3 py-4 text-slate-600">{dateFormatter.format(new Date(order.updatedAt))}</td>
+                <td className="px-3 py-4">
+                  <button
+                    className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    onClick={() => setSelectedOrderId(order.id)}
+                    type="button"
+                  >
+                    Ver detalle
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -217,6 +233,11 @@ export function OrderHistory({ refreshToken = 0 }: OrderHistoryProps) {
           </button>
         </nav>
       </div>
+
+      <OrderDetailModal
+        orderId={selectedOrderId}
+        onClose={handleDetailClose}
+      />
     </section>
   )
 }
