@@ -21,6 +21,11 @@ spring:
         spring.json.use.type.headers: false
 
 app:
+  rsa:
+    private-key-path: ${RSA_PRIVATE_KEY_PATH:../local-keys/private/private-key.pem}
+  payment:
+    success-rate: ${PAYMENT_SUCCESS_RATE:0.85}
+    processing-delay-ms: ${PAYMENT_PROCESSING_DELAY_MS:2000}
   kafka:
     topics:
       order-placed: ${KAFKA_TOPIC_ORDER_PLACED:order-placed}
